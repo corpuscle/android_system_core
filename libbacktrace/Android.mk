@@ -136,7 +136,7 @@ libbacktrace_test_src_files := \
 libbacktrace_test_strip_module := false
 
 module := libbacktrace_test
-module_tag := debug
+module_tag := optional
 build_type := target
 build_target := SHARED_LIBRARY
 libbacktrace_test_multilib := both
@@ -202,7 +202,7 @@ backtrace_test_ldlibs_host += \
 backtrace_test_strip_module := false
 
 module := backtrace_test
-module_tag := debug
+module_tag := optional
 build_type := target
 build_target := NATIVE_TEST
 backtrace_test_multilib := both
