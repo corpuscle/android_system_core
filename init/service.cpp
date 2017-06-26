@@ -456,7 +456,7 @@ bool Service::Start() {
             if (setexeccon(seclabel_.c_str()) < 0) {
                 ERROR("cannot setexeccon('%s'): %s\n",
                       seclabel_.c_str(), strerror(errno));
-                _exit(127);
+                //_exit(127);
             }
         }
 
