@@ -442,26 +442,6 @@ static void selinux_init_all_handles(void)
 
 enum selinux_enforcing_status { SELINUX_PERMISSIVE, SELINUX_ENFORCING };
 
-static selinux_enforcing_status selinux_status_from_cmdline() {
-    selinux_enforcing_status status = SELINUX_ENFORCING;
-
-    import_kernel_cmdline(false, [&](const std::string& key, const std::string& value, bool in_qemu) {
-        if (key == "androidboot.selinux" && value == "permissive") {
-            status = SELINUX_PERMISSIVE;
-        }
-    });
-
-    return status;
-}
-
-static bool selinux_is_enforcing(void)
-{
-    if (ALLOW_PERMISSIVE_SELINUX) {
-        return selinux_status_from_cmdline() == SELINUX_ENFORCING;
-    }
-    return true;
-}
-
 int selinux_reload_policy(void)
 {
     INFO("SELinux: Attempting to reload policy files\n");
@@ -480,62 +460,7 @@ int selinux_reload_policy(void)
     return 0;
 }
 
-static int audit_callback(void *data, security_class_t /*cls*/, char *buf, size_t len) {
 
-    property_audit_data *d = reinterpret_cast<property_audit_data*>(data);
-
-    if (!d || !d->name || !d->cr) {
-        ERROR("audit_callback invoked with null data arguments!");
-        return 0;
-    }
-
-    snprintf(buf, len, "property=%s pid=%d uid=%d gid=%d", d->name,
-            d->cr->pid, d->cr->uid, d->cr->gid);
-    return 0;
-}
-
-static void security_failure() {
-    ERROR("Security failure; rebooting into recovery mode...\n");
-    android_reboot(ANDROID_RB_RESTART2, 0, "recovery");
-    while (true) { pause(); }  // never reached
-}
-
-static void selinux_initialize(bool in_kernel_domain) {
-    Timer t;
-
-    selinux_callback cb;
-    cb.func_log = selinux_klog_callback;
-    selinux_set_callback(SELINUX_CB_LOG, cb);
-    cb.func_audit = audit_callback;
-    selinux_set_callback(SELINUX_CB_AUDIT, cb);
-
-    if (in_kernel_domain) {
-        INFO("Loading SELinux policy...\n");
-        if (selinux_android_load_policy() < 0) {
-            ERROR("failed to load policy: %s\n", strerror(errno));
-            security_failure();
-        }
-
-        bool kernel_enforcing = (security_getenforce() == 1);
-        bool is_enforcing = selinux_is_enforcing();
-        if (kernel_enforcing != is_enforcing) {
-            if (security_setenforce(is_enforcing)) {
-                ERROR("security_setenforce(%s) failed: %s\n",
-                      is_enforcing ? "true" : "false", strerror(errno));
-                security_failure();
-            }
-        }
-
-        if (write_file("/sys/fs/selinux/checkreqprot", "0") == -1) {
-            security_failure();
-        }
-
-        NOTICE("(Initializing SELinux %s took %.2fs.)\n",
-               is_enforcing ? "enforcing" : "non-enforcing", t.duration());
-    } else {
-        selinux_init_all_handles();
-    }
-}
 
 static int charging_mode_booting(void) {
 #ifndef BOARD_CHARGING_MODE_BOOTING_LPM
@@ -612,20 +537,20 @@ int main(int argc, char** argv) {
     }
 
     // Set up SELinux, including loading the SELinux policy if we're in the kernel domain.
-    selinux_initialize(is_first_stage);
+    //selinux_initialize(is_first_stage);
 
     // If we're in the kernel domain, re-exec init to transition to the init domain now
     // that the SELinux policy has been loaded.
     if (is_first_stage) {
         if (restorecon("/init") == -1) {
             ERROR("restorecon failed: %s\n", strerror(errno));
-            security_failure();
+            //security_failure();
         }
         char* path = argv[0];
         char* args[] = { path, const_cast<char*>("--second-stage"), nullptr };
         if (execv(path, args) == -1) {
             ERROR("execv(\"%s\") failed: %s\n", path, strerror(errno));
-            security_failure();
+            //security_failure();
         }
     }
 
