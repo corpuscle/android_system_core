@@ -1051,6 +1051,48 @@ void handle_device_fd()
 ** socket's buffer.
 */
 
+static void do_coldboot(DIR *d)
+{
+    struct dirent *de;
+    int dfd, fd;
+
+    dfd = dirfd(d);
+
+    fd = openat(dfd, "uevent", O_WRONLY);
+    if(fd >= 0) {
+        write(fd, "add\n", 4);
+        close(fd);
+        handle_device_fd();
+    }
+
+    while((de = readdir(d))) {
+        DIR *d2;
+
+        if(de->d_type != DT_DIR || de->d_name[0] == '.')
+            continue;
+
+        fd = openat(dfd, de->d_name, O_RDONLY | O_DIRECTORY);
+        if(fd < 0)
+            continue;
+
+        d2 = fdopendir(fd);
+        if(d2 == 0)
+            close(fd);
+        else {
+            do_coldboot(d2);
+            closedir(d2);
+        }
+    }
+}
+
+static void coldboot(const char *path)
+{
+    DIR *d = opendir(path);
+    if(d) {
+        do_coldboot(d);
+        closedir(d);
+    }
+}
 
 void device_init() {
     sehandle = selinux_android_file_context_handle();
@@ -1069,6 +1111,9 @@ void device_init() {
     }
 
     Timer t;
+    coldboot("/sys/class");
+    coldboot("/sys/block");
+    coldboot("/sys/devices");
     close(open(COLDBOOT_DONE, O_WRONLY|O_CREAT|O_CLOEXEC, 0000));
     NOTICE("Coldboot took %.2fs.\n", t.duration());
 }
