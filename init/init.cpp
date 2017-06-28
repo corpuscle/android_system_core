@@ -585,6 +585,10 @@ int main(int argc, char** argv) {
     parser.AddSectionParser("import", std::make_unique<ImportParser>());
     parser.ParseConfig("/init.rc");
 
+    parser.ParseConfig("/system/etc/init");
+    parser.ParseConfig("/vendor/etc/init");
+    parser.ParseConfig("/odm/etc/init");
+
     ActionManager& am = ActionManager::GetInstance();
 
     am.QueueEventTrigger("early-init");
